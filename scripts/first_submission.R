@@ -209,7 +209,7 @@ for (i in 1:length(grid_models)) {
 #   number_of_trees model_size_in_bytes min_depth max_depth mean_depth min_leaves max_leaves mean_leaves
 #1            3000             6857457        30        30   30.00000         44        460   185.55467
 # min rows 1
-best.rf <- grid_models[[25]] # submission 6,  logloss 0.5697078, lb 
+best.rf <- grid_models[[25]] # submission 6,  logloss 0.5697078, lb 0.59004
 best.rf
 
 predictions <- h2o.predict(best.rf, h2o.test)
