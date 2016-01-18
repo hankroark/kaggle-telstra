@@ -1,4 +1,4 @@
-setwd("~/Documents/github/telstra/scripts")
+setwd("~/Documents/github/kaggle-telstra/scripts")
 
 library(data.table)
 library(Matrix)
@@ -110,21 +110,29 @@ convert_frame <- function(frame) {
 train.augmented <- convert_frame(train)
 test.augmented <- convert_frame(test)
 
+if( expected.rows.train != nrow(train.augmented) | expected.rows.test != nrow(test.augmented) ) { warning("train and/or test length do not match before merge") }
+
+# prep for modeling
 x.columns <- tail(names(train.augmented),n=-6)
+
+# glmnet wants this
 y.columns.glm <- c("predict_0", "predict_1", "predict_2")
+
+# h2o wants this
 y.column.h2o <- "fault_severity"
 
+######### GLMNET ######### 
 x.matrix <- Matrix( as.matrix( train.augmented[,x.columns,with=FALSE] ), sparse = TRUE)
 y.matrix <- as.matrix( train.augmented[,y.columns.glm,with=FALSE])
 
-fit <- glmnet(x=x.matrix, y=y.matrix, family="multinomial", alpha=1)
-plot(fit, xvar="lambda", label=TRUE, type.coef="coef")
+#fit <- glmnet(x=x.matrix, y=y.matrix, family="multinomial", alpha=1)
+#plot(fit, xvar="lambda", label=TRUE, type.coef="coef")
 
-registerDoMC(cores=8)
-cvfit <- cv.glmnet(x=x.matrix, y=y.matrix, parallel=TRUE, family="multinomial", alpha=1, lambda.min.ratio=1e-8, nlambda=20, maxit=100000000)
-plot(cvfit)
+#registerDoMC(cores=8)
+#cvfit <- cv.glmnet(x=x.matrix, y=y.matrix, parallel=TRUE, family="multinomial", alpha=1, lambda.min.ratio=1e-8, nlambda=20, maxit=100000000)
+#plot(cvfit)
 
-#### H2O 
+######### H2O ######### 
 h2o.init(nthreads=-1)
 
 h2o.train <- as.h2o(train.augmented)
@@ -140,64 +148,74 @@ h2o.train <- h2o.cbind(h2o.train,h2o.folds)
 fold.column <- "x"
 
 ###### Need for GLM ####
-cv.train.frames <- c()
-cv.valid.frames <- c()
-for(fold in 1:k) {
-  print(fold)
-  cv.train.frames <- c(cv.train.frames, h2o.train[h2o.train$x != fold,])
-  cv.valid.frames <- c(cv.valid.frames, h2o.train[h2o.train$x == fold,])
-}
-
-lambdas.to.search <- logspace(-5, -1, n=20)
-
-lambdas <- c()
-logloss <- c()
-for( lvalue in lambdas.to.search ) {
-  print(lvalue)
-  for( fold in 1:k ) {
-    print(fold)
-    cvmodel <- h2o.glm(x=x.columns, y=y.column.h2o, training_frame = cv.train.frames[[fold]], family="multinomial", alpha = 1, lambda = lvalue)
-    performance <- h2o.performance(cvmodel, data = cv.valid.frames[[fold]])
-    ll <- h2o.logloss(performance)
-    lambdas <- c(lambdas, lvalue)
-    logloss <- c(logloss, ll)
-  }
-}
-
-cvresults <- data.frame(lambda = as.factor(lambdas), loss = logloss)
-ggplot(cvresults, aes(lambda, loss)) + geom_boxplot()
-best_lambda <- lambdas.to.search[[15]]  # lb 0.69493, submission 1, lambda within IQR of mean of best lambda=0.008858668
-best_lambda <- lambdas.to.search[[12]]  # lb 0.67242, submission 2, best mean loss lambda=0.002069138
-best_lambda <- lambdas.to.search[[13]]  # lb 0.67234, submission 3
-best_lambda <- lambdas.to.search[[14]]  # lb 0.68100, submission 4
-
-fit <- h2o.glm(x=x.columns, y=y.column.h2o, training_frame=h2o.train, family="multinomial", alpha=1, lambda=best_lambda)
-predictions <- h2o.predict(fit, h2o.test)
-predictions$id <- h2o.test$id
-
-df.preds <- as.data.frame(predictions)
-df.preds$predict <- NULL
-names(df.preds) <- c("predict_0","predict_1","predict_2","id")
-write.csv(df.preds[c(4,1,2,3)], file="../submissions/submission4.csv", row.names=FALSE, quote=FALSE)
+# cv.train.frames <- c()
+# cv.valid.frames <- c()
+# for(fold in 1:k) {
+#   print(fold)
+#   cv.train.frames <- c(cv.train.frames, h2o.train[h2o.train$x != fold,])
+#   cv.valid.frames <- c(cv.valid.frames, h2o.train[h2o.train$x == fold,])
+# }
+# 
+# lambdas.to.search <- logspace(-5, -1, n=20)
+# 
+# lambdas <- c()
+# logloss <- c()
+# for( lvalue in lambdas.to.search ) {
+#   print(lvalue)
+#   for( fold in 1:k ) {
+#     print(fold)
+#     cvmodel <- h2o.glm(x=x.columns, y=y.column.h2o, training_frame = cv.train.frames[[fold]], family="multinomial", alpha = 1, lambda = lvalue)
+#     performance <- h2o.performance(cvmodel, data = cv.valid.frames[[fold]])
+#     ll <- h2o.logloss(performance)
+#     lambdas <- c(lambdas, lvalue)
+#     logloss <- c(logloss, ll)
+#   }
+# }
+# 
+# cvresults <- data.frame(lambda = as.factor(lambdas), loss = logloss)
+# ggplot(cvresults, aes(lambda, loss)) + geom_boxplot()
+# best_lambda <- lambdas.to.search[[15]]  # lb 0.69493, submission 1, lambda within IQR of mean of best lambda=0.008858668
+# best_lambda <- lambdas.to.search[[12]]  # lb 0.67242, submission 2, best mean loss lambda=0.002069138
+# best_lambda <- lambdas.to.search[[13]]  # lb 0.67234, submission 3
+# best_lambda <- lambdas.to.search[[14]]  # lb 0.68100, submission 4
+# 
+# fit <- h2o.glm(x=x.columns, y=y.column.h2o, training_frame=h2o.train, family="multinomial", alpha=1, lambda=best_lambda)
+# predictions <- h2o.predict(fit, h2o.test)
+# predictions$id <- h2o.test$id
+# 
+# df.preds <- as.data.frame(predictions)
+# df.preds$predict <- NULL
+# names(df.preds) <- c("predict_0","predict_1","predict_2","id")
+# write.csv(df.preds[c(4,1,2,3)], file="../submissions/submission4.csv", row.names=FALSE, quote=FALSE)
 ### END GLM
 
-gbm.hyper.params <- list(ntrees=c(1000,300,100), learn_rate=c(0.01,0.03,0.1), max_depth=c(2,5,10), col_sample_rate_per_tree=c(0.7,1),  sample_rate=c(0.7,1))
-gbm.hyper.params <- list(ntrees=c(1000,300,100), learn_rate=c(0.01,0.03,0.1), max_depth=c(2,5,10), sample_rate=c(0.7,1))
+#need newer h2o for this part
+#gbm.hyper.params <- list(ntrees=c(1000,300,100), learn_rate=c(0.01,0.03,0.1), max_depth=c(2,5,10), col_sample_rate_per_tree=c(0.7,1),  sample_rate=c(0.7,1))
+#gbm.hyper.params <- list(ntrees=c(1000,300,100), learn_rate=c(0.01,0.03,0.1), max_depth=c(2,5,10), sample_rate=c(0.7,1))
+#gbm.grid <- h2o.grid(algorithm = "gbm", grid="gbm.grid", x=x.columns, y=y.column.h2o, nfolds=10, training_frame=h2o.train, distribution="multinomial", hyper_params = gbm.hyper.params)
 
-gbm.grid <- h2o.grid(algorithm = "gbm", grid="gbm.grid", x=x.columns, y=y.column.h2o, nfolds=10, training_frame=h2o.train, distribution="multinomial", hyper_params = gbm.hyper.params)
+rf.hyper.params <- list(ntrees=c(100,300,1000), max_depth=c(10,20,30), min_rows=c(1,5,10) )
+rf.grid <- h2o.grid(algorithm = "randomForest", grid="rf.grid", x=x.columns, y=y.column.h2o, nfolds=10, training_frame=h2o.train, hyper_params = rf.hyper.params)
 
-grid_models <- lapply(gbm.grid@model_ids, function(model_id) { model = h2o.getModel(model_id) })
+
+grid_models <- lapply(rf.grid@model_ids, function(model_id) { model = h2o.getModel(model_id) })
 for (i in 1:length(grid_models)) {
   print(i)
   print(sprintf("logloss: %f", h2o.logloss(grid_models[[i]], xval=TRUE)))
 }
-best.gbm <- grid_models[[17]]  #lb 0.55763
-best.gbm
+#best.gbm <- grid_models[[17]]  #submission 5, lb 0.55763
+#best.gbm
 
-predictions <- h2o.predict(best.gbm, h2o.test)
+#   number_of_trees model_size_in_bytes min_depth max_depth mean_depth min_leaves max_leaves mean_leaves
+#1            3000             6857457        30        30   30.00000         44        460   185.55467
+# min rows 1
+best.rf <- grid_models[[25]] # submission 6,  logloss 0.5697078, lb 
+best.rf
+
+predictions <- h2o.predict(best.rf, h2o.test)
 predictions$id <- h2o.test$id
 
 df.preds <- as.data.frame(predictions)
 df.preds$predict <- NULL
 names(df.preds) <- c("predict_0","predict_1","predict_2","id")
-write.csv(df.preds[c(4,1,2,3)], file="../submissions/submission5.csv", row.names=FALSE, quote=FALSE)
+write.csv(df.preds[c(4,1,2,3)], file="../submissions/submission6.csv", row.names=FALSE, quote=FALSE)
