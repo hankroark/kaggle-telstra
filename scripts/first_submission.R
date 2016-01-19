@@ -1,5 +1,3 @@
-setwd("~/Documents/github/kaggle-telstra/scripts")
-
 library(data.table)
 library(Matrix)
 library(glmnet)
@@ -10,7 +8,7 @@ library(pracma)
 library(ggplot2)
 
 
-sample.submission <- fread("../data/sample_submission.csv")
+sample.submission <- fread("data/sample_submission.csv")
 # > head(sample.submission)
 # id predict_0 predict_1 predict_2
 # 1: 11066         0         1         0
