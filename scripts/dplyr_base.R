@@ -1,6 +1,8 @@
 library(dplyr)
 library(tidyr)
 library(readr)
+library(e1071)
+library(MLmetrics)
 
 sample.submission <- read_csv("data/sample_submission.csv")
 # head(sample.submission)
@@ -140,6 +142,24 @@ convert_frame <- function(frame) {
 }
 
 train.augmented <- convert_frame(train)
+train.augmented$fault_severity <- as.factor(train.augmented$fault_severity)
 test.augmented <- convert_frame(test)
 
 if( expected.rows.train != nrow(train.augmented) | expected.rows.test != nrow(test.augmented) ) { warning("train and/or test length do not match before merge") }
+
+multilogloss.fun <- function(true, predicted) {
+  MultiLogLoss(y_true=true, y_pred=attr(predicted, "probabilities"))
+}
+
+# model using svm
+cols_to_scale <- grepl("feature*", names(train.augmented))
+svm.model <- svm(fault_severity ~ . - id - location, data = train.augmented, scale=FALSE, probability=TRUE)
+pred <- predict(svm.model, train.augmented, probability=TRUE)
+multilogloss.fun(train.augmented$fault_severity,pred)
+
+obj <- tune.svm(fault_severity ~ . - id - location, data = train.augmented, scale=FALSE, probability=TRUE, cost = sqrt(10)^(0:6), tune.control=tune.control(error.fun=multilogloss.fun))
+summary(obj)
+plot(obj)
+
+
+
