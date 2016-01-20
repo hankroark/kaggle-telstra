@@ -161,5 +161,5 @@ obj <- tune.svm(fault_severity ~ . - id - location, data = train.augmented, scal
 summary(obj)
 plot(obj)
 
-
+pred.test <- predict(obj$best.model, test.augmented, probability=TRUE)
 
