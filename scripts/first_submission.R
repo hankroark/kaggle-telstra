@@ -194,7 +194,8 @@ fold.column <- "x"
 #gbm.hyper.params <- list(ntrees=c(1000,300,100), learn_rate=c(0.01,0.03,0.1), max_depth=c(2,5,10), sample_rate=c(0.7,1))
 #gbm.grid <- h2o.grid(algorithm = "gbm", grid="gbm.grid", x=x.columns, y=y.column.h2o, nfolds=10, training_frame=h2o.train, distribution="multinomial", hyper_params = gbm.hyper.params)
 
-rf.hyper.params <- list(ntrees=c(100,300,1000), max_depth=c(10,20,30), min_rows=c(1,5,10) )
+# rf.hyper.params <- list(ntrees=c(100,300,1000), max_depth=c(10,20,30), min_rows=c(1,5,10) )
+rf.hyper.params <- list(ntrees=c(300,1000), max_depth=c(30,50), min_rows=c(1,2,3) )
 rf.grid <- h2o.grid(algorithm = "randomForest", grid="rf.grid", x=x.columns, y=y.column.h2o, nfolds=10, training_frame=h2o.train, hyper_params = rf.hyper.params)
 
 
@@ -210,6 +211,7 @@ for (i in 1:length(grid_models)) {
 #1            3000             6857457        30        30   30.00000         44        460   185.55467
 # min rows 1
 best.rf <- grid_models[[25]] # submission 6,  logloss 0.5697078, lb 0.59004
+# interesting, very quickly gets to minimum log loss.  try higher depth trees, number of trees 1000.  might not have overfit yet.
 best.rf
 
 predictions <- h2o.predict(best.rf, h2o.test)
