@@ -147,19 +147,42 @@ test.augmented <- convert_frame(test)
 
 if( expected.rows.train != nrow(train.augmented) | expected.rows.test != nrow(test.augmented) ) { warning("train and/or test length do not match before merge") }
 
+# remove constant columns
+columnstokeep <- apply(train.augmented, 2, var, na.rm=TRUE) != 0
+columnstokeep["location"] = TRUE
+train.removedconstantcolumns <- train.augmented[,columnstokeep]
+
 multilogloss.fun <- function(true, predicted) {
   MultiLogLoss(y_true=true, y_pred=attr(predicted, "probabilities"))
 }
 
 # model using svm
-cols_to_scale <- grepl("feature*", names(train.augmented))
-svm.model <- svm(fault_severity ~ . - id - location, data = train.augmented, scale=FALSE, probability=TRUE)
-pred <- predict(svm.model, train.augmented, probability=TRUE)
-multilogloss.fun(train.augmented$fault_severity,pred)
+svm.model <- svm(fault_severity ~ . - id - location, data = train.removedconstantcolumns, scale=TRUE, probability=TRUE)
+pred <- predict(svm.model, train.removedconstantcolumns, probability=TRUE)
+multilogloss.fun(train.removedconstantcolumns$fault_severity,pred)  # 1.238027, no CV, lb = 0.76910
 
-obj <- tune.svm(fault_severity ~ . - id - location, data = train.augmented, scale=FALSE, probability=TRUE, cost = sqrt(10)^(0:6), tune.control=tune.control(error.fun=multilogloss.fun))
+#summary(svm.model)
+#table(predict=pred, truth=train.removedconstantcolumns$fault_severity)
+
+preds <- predict(svm.model, test.augmented, probability = TRUE)
+preds.df <- as.data.frame(attr(preds, "probabilities"))
+preds.df$id <- test.augmented$id
+names(preds.df) <- c("predict_1","predict_0","predict_2","id")
+write_csv(preds.df[c(4,2,1,3)], path="submissions/submission7.csv")
+
+
+# hyperparameter search
+obj <- tune.svm(fault_severity ~ . - id - location, data = train.removedconstantcolumns, scale=TRUE, probability=TRUE, cost = sqrt(10)^(0:6), tune.control=tune.control(error.fun=multilogloss.fun))
 summary(obj)
 plot(obj)
 
-pred.test <- predict(obj$best.model, test.augmented, probability=TRUE)
+pred <- predict(obj$best.model, train.removedconstantcolumns, probability=TRUE)
+multilogloss.fun(train.removedconstantcolumns$fault_severity,pred)  # 1.358843
+
+
+pred.test <- predict(obj$best.model, test.augmented, probability=TRUE)  # C=100, gamma = 0.002531646, radial, error = 0.2624304, lb = 0.76910
+preds.df <- as.data.frame(attr(preds.test, "probabilities"))
+preds.df$id <- test.augmented$id
+names(preds.df) <- c("predict_1","predict_0","predict_2","id")
+write_csv(preds.df[c(4,2,1,3)], path="submissions/submission8.csv")
 
