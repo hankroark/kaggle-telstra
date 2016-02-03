@@ -152,37 +152,62 @@ columnstokeep <- apply(train.augmented, 2, var, na.rm=TRUE) != 0
 columnstokeep["location"] = TRUE
 train.removedconstantcolumns <- train.augmented[,columnstokeep]
 
-multilogloss.fun <- function(true, predicted) {
-  MultiLogLoss(y_true=true, y_pred=attr(predicted, "probabilities"))
-}
+# End data prep
+# Start modeling
 
-# model using svm
-svm.model <- svm(fault_severity ~ . - id - location, data = train.removedconstantcolumns, scale=TRUE, probability=TRUE)
-pred <- predict(svm.model, train.removedconstantcolumns, probability=TRUE)
-multilogloss.fun(train.removedconstantcolumns$fault_severity,pred)  # 1.238027, no CV, lb = 0.76910
+library(h2o)
+h2o.init()
 
-#summary(svm.model)
-#table(predict=pred, truth=train.removedconstantcolumns$fault_severity)
+h2o.train <- as.h2o(train.removedconstantcolumns)
+h2o.test  <- as.h2o(test.augmented)
+h2o.train$fault_severity <- as.factor(h2o.train$fault_severity)
 
-preds <- predict(svm.model, test.augmented, probability = TRUE)
-preds.df <- as.data.frame(attr(preds, "probabilities"))
-preds.df$id <- test.augmented$id
-names(preds.df) <- c("predict_1","predict_0","predict_2","id")
-write_csv(preds.df[c(4,2,1,3)], path="submissions/submission7.csv")
+rf.model <- h2o.randomForest(x=4:length(h2o.train), y=3, 
+                             training_frame = h2o.train, nfolds = 5)
 
+predictions <- h2o.predict(rf.model, h2o.test)
+predictions$id <- h2o.test$id
 
-# hyperparameter search
-obj <- tune.svm(fault_severity ~ . - id - location, data = train.removedconstantcolumns, scale=TRUE, probability=TRUE, cost = sqrt(10)^(0:6), tune.control=tune.control(error.fun=multilogloss.fun))
-summary(obj)
-plot(obj)
-
-pred <- predict(obj$best.model, train.removedconstantcolumns, probability=TRUE)
-multilogloss.fun(train.removedconstantcolumns$fault_severity,pred)  # 1.358843
+df.preds <- as.data.frame(predictions)
+df.preds$predict <- NULL
+names(df.preds) <- c("predict_0","predict_1","predict_2","id")
+write.csv(df.preds[c(4,1,2,3)], file="../submissions/submission-rf.csv", row.names=FALSE, quote=FALSE)
 
 
-pred.test <- predict(obj$best.model, test.augmented, probability=TRUE)  # C=100, gamma = 0.002531646, radial, error = 0.2624304, lb = 0.76910
-preds.df <- as.data.frame(attr(preds.test, "probabilities"))
-preds.df$id <- test.augmented$id
-names(preds.df) <- c("predict_1","predict_0","predict_2","id")
-write_csv(preds.df[c(4,2,1,3)], path="submissions/submission8.csv")
-
+# write_csv(train.removedconstantcolumns, "data/train_prepared.csv")
+# write_csv(test.augmented, "data/test.augmented")
+# 
+# multilogloss.fun <- function(true, predicted) {
+#   MultiLogLoss(y_true=true, y_pred=attr(predicted, "probabilities"))
+# }
+# 
+# # model using svm
+# svm.model <- svm(fault_severity ~ . - id - location, data = train.removedconstantcolumns, scale=TRUE, probability=TRUE)
+# pred <- predict(svm.model, train.removedconstantcolumns, probability=TRUE)
+# multilogloss.fun(train.removedconstantcolumns$fault_severity,pred)  # 1.238027, no CV, lb = 0.76910
+# 
+# #summary(svm.model)
+# #table(predict=pred, truth=train.removedconstantcolumns$fault_severity)
+# 
+# preds <- predict(svm.model, test.augmented, probability = TRUE)
+# preds.df <- as.data.frame(attr(preds, "probabilities"))
+# preds.df$id <- test.augmented$id
+# names(preds.df) <- c("predict_1","predict_0","predict_2","id")
+# write_csv(preds.df[c(4,2,1,3)], path="submissions/submission7.csv")
+# 
+# 
+# # hyperparameter search
+# obj <- tune.svm(fault_severity ~ . - id - location, data = train.removedconstantcolumns, scale=TRUE, probability=TRUE, cost = sqrt(10)^(0:6), tune.control=tune.control(error.fun=multilogloss.fun))
+# summary(obj)
+# plot(obj)
+# 
+# pred <- predict(obj$best.model, train.removedconstantcolumns, probability=TRUE)
+# multilogloss.fun(train.removedconstantcolumns$fault_severity,pred)  # 1.358843
+# 
+# 
+# pred.test <- predict(obj$best.model, test.augmented, probability=TRUE)  # C=100, gamma = 0.002531646, radial, error = 0.2624304, lb = 0.76910
+# preds.df <- as.data.frame(attr(preds.test, "probabilities"))
+# preds.df$id <- test.augmented$id
+# names(preds.df) <- c("predict_1","predict_0","predict_2","id")
+# write_csv(preds.df[c(4,2,1,3)], path="submissions/submission8.csv")
+# 
