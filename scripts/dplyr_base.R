@@ -161,8 +161,9 @@ h2o.init()
 h2o.train <- as.h2o(train.removedconstantcolumns)
 h2o.test  <- as.h2o(test.augmented)
 h2o.train$fault_severity <- as.factor(h2o.train$fault_severity)
-
-rf.model <- h2o.randomForest(x=4:length(h2o.train), y=3, max_depth = 40,
+y <- "fault_severity"
+x <- setdiff(names(h2o.train), names(h2o.train)[1:3])  # don't include id, location, fault_severity
+rf.model <- h2o.randomForest(x=x, y=y, max_depth = 40,
                              training_frame = h2o.train, nfolds = 5)
 summary(rf.model)
 
