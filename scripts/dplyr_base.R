@@ -168,10 +168,11 @@ rf.model <- h2o.randomForest(x=4:length(h2o.train), y=3,
 predictions <- h2o.predict(rf.model, h2o.test)
 predictions$id <- h2o.test$id
 
+# prep data for writing out
 df.preds <- as.data.frame(predictions)
 df.preds$predict <- NULL
 names(df.preds) <- c("predict_0","predict_1","predict_2","id")
-write.csv(df.preds[c(4,1,2,3)], file="../submissions/submission-rf.csv", row.names=FALSE, quote=FALSE)
+write.csv(df.preds[c(4,1,2,3)], file="submissions/submission-rf.csv", row.names=FALSE, quote=FALSE)
 
 
 # write_csv(train.removedconstantcolumns, "data/train_prepared.csv")
