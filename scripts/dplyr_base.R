@@ -162,10 +162,14 @@ h2o.train <- as.h2o(train.removedconstantcolumns)
 h2o.test  <- as.h2o(test.augmented)
 h2o.train$fault_severity <- as.factor(h2o.train$fault_severity)
 
-rf.model <- h2o.randomForest(x=4:length(h2o.train), y=3, 
+rf.model <- h2o.randomForest(x=4:length(h2o.train), y=3, max_depth = 40,
                              training_frame = h2o.train, nfolds = 5)
+summary(rf.model)
 
+# make predictions
 predictions <- h2o.predict(rf.model, h2o.test)
+
+# added id needed for submission
 predictions$id <- h2o.test$id
 
 # prep data for writing out
