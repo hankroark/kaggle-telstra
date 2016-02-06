@@ -9,7 +9,7 @@ h2o.train$fault_severity <- as.factor(h2o.train$fault_severity)
 y <- "fault_severity"
 x <- setdiff(names(h2o.train), y)  
 
-gbm.hyper.params <- list(ntrees=c(1000,300,100), learn_rate=c(0.01,0.03,0.1), max_depth=c(2,5,10), sample_rate=c(0.7,1))
+gbm.hyper.params <- list(ntrees=c(1000,300,100), learn_rate=c(0.01,0.03,0.1), max_depth=c(2,5,10), sample_rate=c(1,0.7))
 gbm.grid <- h2o.grid(algorithm = "gbm", grid="gbm.grid", x=x, y=y, nfolds=5, training_frame=h2o.train, distribution="multinomial", hyper_params = gbm.hyper.params)
 
 h2o.logloss(gbm.model, xval = TRUE)
