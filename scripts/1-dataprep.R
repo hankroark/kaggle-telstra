@@ -159,6 +159,7 @@ columnstokeep["id"] = FALSE
 columnstokeep["derivlocation"] = TRUE
 train.removedconstantcolumns <- train.augmented[,columnstokeep]
 testcolumnstokeep <- columnstokeep[c(1:2,4:length(columnstokeep))]
+testcolumnstokeep["id"] = TRUE
 test.removedconstantcolumns <- test.augmented[,testcolumnstokeep]
 
 # End data prep

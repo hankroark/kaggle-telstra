@@ -9,9 +9,13 @@ h2o.train$fault_severity <- as.factor(h2o.train$fault_severity)
 y <- "fault_severity"
 x <- setdiff(names(h2o.train), y)  
 
-gbm.model <- h2o.gbm(x=x, y=y,
-                    training_frame = h2o.train, nfolds = 5)
-summary(gbm.model)
+gbm.hyper.params <- list(ntrees=c(1000,300,100), learn_rate=c(0.01,0.03,0.1), max_depth=c(2,5,10), sample_rate=c(0.7,1))
+gbm.grid <- h2o.grid(algorithm = "gbm", grid="gbm.grid", x=x, y=y, nfolds=5, training_frame=h2o.train, distribution="multinomial", hyper_params = gbm.hyper.params)
+
+h2o.logloss(gbm.model, xval = TRUE)
+
+# defaults had xval log loss of 0.6669375, leader board reports 0.63500
+
 
 # make predictions
 predictions <- h2o.predict(gbm.model, h2o.test)
