@@ -145,11 +145,22 @@ test.augmented <- convert_frame(test)
 
 if( expected.rows.train != nrow(train.augmented) | expected.rows.test != nrow(test.augmented) ) { warning("train and/or test length do not match before merge") }
 
+common.locations <- intersect(train.augmented$location, test.augmented$location)
+train.augmented$derivlocation <- ifelse(train.augmented$location %in% common.locations, train.augmented$location, 'unknown')
+test.augmented$derivlocation <- ifelse(test.augmented$location %in% common.locations, test.augmented$location, 'unknown')
+train.augmented$derivlocation <- sub(" ", "_", train.augmented$derivlocation)
+test.augmented$derivlocation <- sub(" ", "_", test.augmented$derivlocation)
+
+
 # remove constant columns
 columnstokeep <- apply(train.augmented, 2, var, na.rm=TRUE) != 0
-columnstokeep["location"] = TRUE
+columnstokeep["location"] = FALSE
+columnstokeep["id"] = FALSE
+columnstokeep["derivlocation"] = TRUE
 train.removedconstantcolumns <- train.augmented[,columnstokeep]
+testcolumnstokeep <- columnstokeep[c(1:2,4:length(columnstokeep))]
+test.removedconstantcolumns <- test.augmented[,testcolumnstokeep]
 
 # End data prep
 write.csv(train.removedconstantcolumns, file="data-postprep/train.csv", row.names=FALSE, quote=FALSE)
-write.csv(test.augmented, file="data-postprep/test.csv", row.names=FALSE, quote=FALSE)
+write.csv(test.removedconstantcolumns, file="data-postprep/test.csv", row.names=FALSE, quote=FALSE)
